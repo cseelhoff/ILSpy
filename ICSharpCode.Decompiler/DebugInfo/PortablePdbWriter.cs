@@ -253,7 +253,7 @@ namespace ICSharpCode.Decompiler.DebugInfo
 			};
 		}
 
-		public static int DecompileAsProject(string assemblyFileName, string outputDirectory)
+		public static void DecompileAsProject(string assemblyFileName, string outputDirectory)
 		{
 			var module = new PEFile(assemblyFileName);
 			var resolver = new UniversalAssemblyResolver(assemblyFileName, false, module.Reader.DetectTargetFrameworkId());
@@ -263,12 +263,12 @@ namespace ICSharpCode.Decompiler.DebugInfo
 			}
 			var decompiler = new WholeProjectDecompiler(GetSettings(module), resolver, resolver, null);
 			decompiler.DecompileProject(module, outputDirectory);
-			return 0;
 		}
 
 
-		public static void WritePdb(string peFileName, string pdbFileName)
+		public static void WritePdb(string peFileName, string pdbFileName, string outputDirectory)
 		{
+			DecompileAsProject(peFileName, outputDirectory);
 			bool noLogo = true;
 			var settings = new DecompilerSettings();
 			var file = new PEFile(peFileName);
@@ -292,7 +292,14 @@ namespace ICSharpCode.Decompiler.DebugInfo
 			string BuildFileNameFromTypeName(TypeDefinitionHandle handle)
 			{
 				var typeName = handle.GetFullTypeName(reader).TopLevelTypeName;
-				return Path.Combine(WholeProjectDecompiler.CleanUpFileName(typeName.Namespace), WholeProjectDecompiler.CleanUpFileName(typeName.Name) + ".cs");
+				string csFilePath = WholeProjectDecompiler.CleanUpFileName(typeName.Name) + ".cs";
+				string ns = typeName.Namespace;
+				if (!string.IsNullOrEmpty(ns))
+				{
+					string dir = WholeProjectDecompiler.CleanUpDirectoryName(ns);
+					csFilePath = Path.Combine(dir, csFilePath);
+				}
+				return Path.Combine(outputDirectory, csFilePath);
 			}
 
 			foreach (var sourceFile in reader.GetTopLevelTypeDefinitions().GroupBy(BuildFileNameFromTypeName))
