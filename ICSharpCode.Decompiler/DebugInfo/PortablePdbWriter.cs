@@ -28,11 +28,13 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.ProjectDecompiler;
 using ICSharpCode.Decompiler.CSharp.Syntax;
+using ICSharpCode.Decompiler.Documentation;
 using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
@@ -233,6 +235,37 @@ namespace ICSharpCode.Decompiler.DebugInfo
 				}
 			}
 		}
+
+
+		public static LanguageVersion LanguageVersion { get; } = LanguageVersion.Latest;
+		public static bool RemoveDeadCode { get; }
+		public static bool RemoveDeadStores { get; }
+
+		public static string[] ReferencePaths { get; } = new string[0];
+
+		public static DecompilerSettings GetSettings(PEFile module)
+		{
+			return new DecompilerSettings(LanguageVersion) {
+				ThrowOnAssemblyResolveErrors = false,
+				RemoveDeadCode = RemoveDeadCode,
+				RemoveDeadStores = RemoveDeadStores,
+				UseSdkStyleProjectFormat = WholeProjectDecompiler.CanUseSdkStyleProjectFormat(module),
+			};
+		}
+
+		public static int DecompileAsProject(string assemblyFileName, string outputDirectory)
+		{
+			var module = new PEFile(assemblyFileName);
+			var resolver = new UniversalAssemblyResolver(assemblyFileName, false, module.Reader.DetectTargetFrameworkId());
+			foreach (var path in ReferencePaths)
+			{
+				resolver.AddSearchDirectory(path);
+			}
+			var decompiler = new WholeProjectDecompiler(GetSettings(module), resolver, resolver, null);
+			decompiler.DecompileProject(module, outputDirectory);
+			return 0;
+		}
+
 
 		public static void WritePdb(string peFileName, string pdbFileName)
 		{
